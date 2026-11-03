@@ -9,6 +9,12 @@ import shell.services
 // square on the screen-edge side and rounded on the inner one, ruled by a single
 // hairline along its inner edge. Ledger is a bordered sheet at the house radius;
 // its per-cell dividers, index and active-cell inversion are drawn by the item.
+//
+// user_edits fork (2026-10-26): the frosted rail is lighter (0.5, was 0.6) and
+// carries the sidebar's glass finish, a faint white rim and a sheen falling
+// from the top (same idea as framebars/menus/glass.js). The blur behind it is
+// the ryoku-dock layer rule in hypr/user.lua. Keep the dock shadow off with
+// this: the shadow is drawn under the whole plate and darkens it through.
 Item {
     id: backdrop
 
@@ -32,13 +38,14 @@ Item {
     readonly property bool outerBottom: backdrop.horizontal && backdrop.edge === "bottom"
     readonly property bool outerLeft: !backdrop.horizontal && backdrop.edge === "left"
     readonly property bool outerRight: !backdrop.horizontal && backdrop.edge === "right"
+    readonly property bool glass: backdrop.style === "rail" && backdrop.band.frost
 
     Rectangle {
         id: plate
         anchors.fill: parent
-        color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, backdrop.band.frost ? 0.6 : 0.94)
-        border.width: backdrop.ledger ? 1 : 0
-        border.color: backdrop.band.hairline
+        color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, backdrop.band.frost ? 0.5 : 0.94)
+        border.width: (backdrop.ledger || backdrop.glass) ? 1 : 0
+        border.color: backdrop.glass ? Qt.rgba(1, 1, 1, 0.08) : backdrop.band.hairline
         topLeftRadius:     backdrop.ledger ? backdrop.r : ((backdrop.outerBottom || backdrop.outerRight) ? backdrop.r : 0)
         topRightRadius:    backdrop.ledger ? backdrop.r : ((backdrop.outerBottom || backdrop.outerLeft) ? backdrop.r : 0)
         bottomLeftRadius:  backdrop.ledger ? backdrop.r : ((backdrop.outerTop || backdrop.outerRight) ? backdrop.r : 0)
@@ -55,6 +62,21 @@ Item {
             color: Qt.rgba(Theme.shadow.r, Theme.shadow.g, Theme.shadow.b, 0.5)
             visible: backdrop.band.shadow && !Perf.shadowsDisabled
             z: -1
+        }
+
+        // Light falling from the top, inside the rim.
+        Rectangle {
+            visible: backdrop.glass
+            anchors.fill: parent
+            anchors.margins: 1
+            topLeftRadius: Math.max(0, plate.topLeftRadius - 1)
+            topRightRadius: Math.max(0, plate.topRightRadius - 1)
+            bottomLeftRadius: Math.max(0, plate.bottomLeftRadius - 1)
+            bottomRightRadius: Math.max(0, plate.bottomRightRadius - 1)
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.06) }
+                GradientStop { position: 0.35; color: Qt.rgba(1, 1, 1, 0) }
+            }
         }
     }
 
