@@ -20,9 +20,10 @@ Item {
     // the cover's fade (ReloadMedia binds it); the sound beds follow it
     property real presence: 1
     readonly property string mode: Quickshell.env("RYOKU_RELOAD_COVER_MODE") || ""
-    // unlock-watch.sh replays the intro after the screen unlocks, on a reload
-    // cover (its iris closes over the desktop) tagged with this reason
-    readonly property bool unlockCover: mode === "reload" && Quickshell.env("RYOKU_INTRO_REASON") === "unlock"
+    // unlock-watch.sh replays the intro after the screen unlocks: on the cover
+    // it readies behind the lock (unlock.qml, mode boot) or, as a
+    // fallback, on a reload cover whose iris closes over the desktop
+    readonly property bool unlockCover: Quickshell.env("RYOKU_INTRO_REASON") === "unlock"
     readonly property real s: Math.max(0.12, Math.min(width / 1920, height / 1080))
     readonly property bool calm: Tokens.reduceMotion
     readonly property string mono: "JetBrainsMono Nerd Font"

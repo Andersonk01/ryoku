@@ -63,6 +63,9 @@ Item {
         || (root.coverToken !== "" && root.seenToken === root.coverToken)
     readonly property bool wantsIntro: introEnabled && introAllowed
     function markIntroSeen(): void {
+        // an after-unlock cover is not a login
+        if (Quickshell.env("RYOKU_INTRO_REASON") === "unlock")
+            return;
         if (root.coverMode === "boot" && root.introShowMode === "once"
                 && root.coverToken !== "" && root.seenToken !== root.coverToken)
             seenFile.setText(root.coverToken + "\n");
