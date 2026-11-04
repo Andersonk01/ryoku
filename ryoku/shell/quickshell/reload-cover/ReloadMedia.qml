@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Qt5Compat.GraphicalEffects
 
 Item {
@@ -16,8 +17,65 @@ Item {
     readonly property string mediaPath: descriptor && typeof descriptor.path === "string" ? descriptor.path : ""
     readonly property string mediaKind: descriptor && typeof descriptor.kind === "string" ? descriptor.kind : "default"
     readonly property bool customEnabled: !descriptor || descriptor.enabled !== false
-    readonly property bool wantsVideo: customEnabled && mediaPath !== "" && mediaKind === "video"
-    readonly property bool wantsImage: customEnabled && mediaPath !== "" && (mediaKind === "image" || mediaKind === "animated")
+    // [user fork] the animated intro (HackerIntro.qml) takes the place of the
+    // wordmark and of any custom asset while ~/.config/ryoku/intro.json has
+    // "enabled": true. Its own loader falls back to the wordmark on any error.
+    //
+    // showMode "once" plays it on one login only: the first boot cover that
+    // shows it writes its own token to $XDG_STATE_HOME/ryoku/intro-seen, and
+    // a later cover with another token falls back to the wordmark. Matching
+    // the token (not just "file exists") keeps every monitor of that first
+    // cover on the intro. The Hub preview (no cover mode) always shows it;
+    // the Hub's SHOW AGAIN empties the marker.
+    readonly property string coverMode: Quickshell.env("RYOKU_RELOAD_COVER_MODE") || ""
+    readonly property string coverToken: Quickshell.env("RYOKU_RELOAD_COVER_TOKEN") || ""
+    readonly property string seenPath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku/intro-seen"
+    readonly property string introPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/intro.json"
+    FileView {
+        id: introFile
+        path: root.introPath
+        blockLoading: true
+        printErrors: false
+        watchChanges: true
+        onFileChanged: reload()
+    }
+    // parsed in one piece: a JsonAdapter applies keys one by one, so the
+    // loader would see "enabled" before "showMode" and decide on half a file
+    readonly property var introCfg: {
+        try {
+            return JSON.parse(introFile.text() || "{}") || ({});
+        } catch (e) {
+            return ({});
+        }
+    }
+    readonly property bool introEnabled: introCfg.enabled === true
+    readonly property string introShowMode: introCfg.showMode === "once" ? "once" : "always"
+    FileView {
+        id: seenFile
+        path: root.seenPath
+        blockLoading: true
+        printErrors: false
+    }
+    readonly property string seenToken: (seenFile.text() || "").trim()
+    readonly property bool introAllowed: root.coverMode === ""
+        || root.introShowMode !== "once"
+        || root.seenToken === ""
+        || (root.coverToken !== "" && root.seenToken === root.coverToken)
+    readonly property bool wantsIntro: introEnabled && introAllowed
+    function markIntroSeen(): void {
+        if (root.coverMode === "boot" && root.introShowMode === "once"
+                && root.coverToken !== "" && root.seenToken !== root.coverToken)
+            seenFile.setText(root.coverToken + "\n");
+    }
+    readonly property bool introReady: wantsIntro && !forceDefault
+        && introLoader.status === Loader.Ready && introLoader.item !== null
+    function replayIntro(): void {
+        if (introLoader.item)
+            introLoader.item.restart();
+    }
+
+    readonly property bool wantsVideo: !wantsIntro && customEnabled && mediaPath !== "" && mediaKind === "video"
+    readonly property bool wantsImage: !wantsIntro && customEnabled && mediaPath !== "" && (mediaKind === "image" || mediaKind === "animated")
     // brand.json stores an absolute path today, but a hand-edited or ported
     // config may carry a ~ (the shell expands it for the brand mark too); a bare
     // "file://~/..." resolves to nothing and silently falls back to the default
@@ -43,7 +101,7 @@ Item {
         && customImageLoader.item
         && customImageLoader.item.status === Image.Ready
     readonly property bool videoReady: videoLoader.status === Loader.Ready && videoLoader.item && videoLoader.item.ready
-    readonly property bool customReady: customEnabled && !forceDefault && (imageReady || videoReady)
+    readonly property bool customReady: introReady || (customEnabled && !forceDefault && (imageReady || videoReady))
     readonly property bool mediaError: wantsImage
         ? probeFailed
             || (orientationKnown && (customImageLoader.status === Loader.Error
@@ -99,6 +157,20 @@ Item {
                 duration: 1200
                 running: defaultLogo.visible && root.active
                 loops: Animation.Infinite
+            }
+        }
+    }
+
+    Loader {
+        id: introLoader
+        anchors.fill: parent
+        active: root.wantsIntro && !root.forceDefault
+        visible: root.introReady
+        source: active ? Qt.resolvedUrl("HackerIntro.qml") : ""
+        onLoaded: {
+            if (status === Loader.Ready && item) {
+                item.active = Qt.binding(() => root.active && !root.forceDefault)
+                root.markIntroSeen()
             }
         }
     }

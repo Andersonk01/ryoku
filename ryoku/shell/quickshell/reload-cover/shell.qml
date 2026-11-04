@@ -21,6 +21,47 @@ ShellRoot {
     readonly property string brandPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/brand.json"
     readonly property var reloadCover: brandAdapter.reloadCover || ({ path: "", name: "", kind: "default", bytes: 0 })
 
+    // [user fork] minimum hold for the login intro. The launcher kills this
+    // process 0.55 s after a finish call returns true, so a finish that comes
+    // before minHold elapses answers false and the cover opens itself when the
+    // hold is over (the launcher's retries give up quietly; the shell ignores
+    // their exit code). Boot only: a shell reload never waits.
+    readonly property real bornAt: Date.now()
+    readonly property string introPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/intro.json"
+    // the same "once" rule ReloadMedia applies: no intro, no hold
+    readonly property string introSeen: (introSeenFile.text() || "").trim()
+    readonly property bool introPlays: introAdapter.enabled
+        && (introAdapter.showMode !== "once" || introSeen === "" || introSeen === token)
+    readonly property int minHoldMs: mode === "boot" && introPlays
+        ? Math.round(Math.max(0, Math.min(10, Number(introAdapter.minHold) || 0)) * 1000) : 0
+    property bool releaseDeferred: false
+    FileView {
+        path: root.introPath
+        blockLoading: true
+        printErrors: false
+        JsonAdapter {
+            id: introAdapter
+            property bool enabled: false
+            property real minHold: 0
+            property string showMode: "always"
+        }
+    }
+    FileView {
+        id: introSeenFile
+        path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku/intro-seen"
+        blockLoading: true
+        printErrors: false
+    }
+    Timer {
+        id: minHoldTimer
+        onTriggered: {
+            if (root.phase === "hold")
+                root.phase = "opening";
+            else if (root.phase === "closing")
+                root.finishQueued = true;
+        }
+    }
+
     FileView {
         path: root.brandPath
         blockLoading: true
@@ -43,6 +84,15 @@ ShellRoot {
     function finish(value: string): bool {
         if (value !== token || phase === "opening" || phase === "failed")
             return false;
+        const wait = minHoldMs - (Date.now() - bornAt);
+        if (wait > 0 || releaseDeferred) {
+            if (!releaseDeferred) {
+                releaseDeferred = true;
+                minHoldTimer.interval = Math.ceil(wait);
+                minHoldTimer.start();
+            }
+            return false;
+        }
         if (phase === "hold")
             phase = "opening";
         else

@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Ryoku.Ui
 import Ryoku.Ui.Singletons
 import "ReloadCoverModel.js" as ReloadCoverModel
@@ -23,11 +24,65 @@ Item {
     signal defaultRequested()
     signal enabledToggled(bool enabled)
 
-    implicitHeight: grid.implicitHeight
+    implicitHeight: grid.implicitHeight + Tokens.s5 + introPanel.implicitHeight
+
+    // [user fork] the login intro's settings. They write straight to
+    // ~/.config/ryoku/intro.json (the cover and this preview both watch it),
+    // so they apply at once and do not ride the page's Save bar.
+    readonly property string introPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/intro.json"
+    FileView {
+        id: introFV
+        path: control.introPath
+        printErrors: false
+        watchChanges: true
+        onFileChanged: reload()
+        JsonAdapter {
+            id: introA
+            property bool enabled: false
+            property string title: "ANDERSONK"
+            property string subtitle: "Full Stack Developer"
+            property string tagline: "React · Next.js · Node.js · TypeScript"
+            property string header: "ACCESS GRANTED"
+            property string style: "pixel"
+            property string accent: "#6EE7F9"
+            property string accent2: "#34D399"
+            property bool rain: true
+            property bool glitch: true
+            property bool scanlines: true
+            property bool bootLog: true
+            property real minHold: 3
+            property string showMode: "always"
+        }
+    }
+    // "once" bookkeeping: the boot cover that first plays the intro writes its
+    // token here; emptying it arms the intro for the next login again.
+    FileView {
+        id: introSeenFV
+        path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku/intro-seen"
+        printErrors: false
+        watchChanges: true
+        onFileChanged: reload()
+    }
+    readonly property bool introSeen: (introSeenFV.text() || "").trim() !== ""
+    function introRearm() {
+        introSeenFV.setText("");
+    }
+    function introSet(key, value) {
+        if (introA[key] === value)
+            return;
+        introA[key] = value;
+        introFV.writeAdapter();
+    }
+    function replayIntro() {
+        if (renderer.item && typeof renderer.item.replayIntro === "function")
+            renderer.item.replayIntro();
+    }
 
     GridLayout {
         id: grid
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
         columns: control.width >= Tokens.px(720) ? 2 : 1
         columnSpacing: Tokens.s5
         rowSpacing: Tokens.s4
@@ -85,7 +140,8 @@ Item {
             spacing: Tokens.s2
 
             Rectangle {
-                readonly property string kindLabel: control.media.path !== "" && !control.media.enabled
+                readonly property string kindLabel: introA.enabled ? I18n.tr("INTRO · ANIMATED")
+                    : control.media.path !== "" && !control.media.enabled
                     ? I18n.tr("CUSTOM OFF")
                     : (control.media.kind === "video"
                     ? I18n.tr("VIDEO · MUTED")
@@ -231,6 +287,214 @@ Item {
                 }
                 Item { Layout.fillWidth: true }
             }
+        }
+    }
+
+    component IntroLabel: Text {
+        color: Tokens.inkMuted
+        font.family: Tokens.mono
+        font.pixelSize: Tokens.fMicro
+        font.weight: Font.Medium
+        font.letterSpacing: Tokens.trackLabel
+    }
+    component IntroSwitch: RowLayout {
+        id: isw
+        property string label: ""
+        property bool on: false
+        signal flipped(bool v)
+        Layout.fillWidth: true
+        spacing: Tokens.s2
+        IntroLabel { text: isw.label; color: Tokens.ink }
+        Item { Layout.fillWidth: true }
+        Sw {
+            on: isw.on
+            Accessible.name: isw.label
+            onToggled: (v) => isw.flipped(v)
+        }
+    }
+    component IntroField: ColumnLayout {
+        id: ifl
+        property string label: ""
+        property string value: ""
+        property string hint: ""
+        signal valueEdited(string v)
+        Layout.fillWidth: true
+        spacing: Tokens.s1
+        IntroLabel { text: ifl.label }
+        Field {
+            Layout.fillWidth: true
+            placeholder: ifl.hint
+            text: ifl.value
+            onCommitted: (v) => { if (v !== ifl.value) ifl.valueEdited(v); }
+        }
+    }
+
+    ColumnLayout {
+        id: introPanel
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: grid.bottom
+        anchors.topMargin: Tokens.s5
+        spacing: Tokens.s3
+
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: Tokens.border
+            color: Tokens.line
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Tokens.s2
+            Text {
+                text: I18n.tr("LOGIN INTRO")
+                color: Tokens.ink
+                font.family: Tokens.mono
+                font.pixelSize: Tokens.fMicro
+                font.weight: Font.Medium
+                font.letterSpacing: Tokens.trackLabel
+            }
+            Item { Layout.fillWidth: true }
+            Btn {
+                text: I18n.tr("REPLAY")
+                compact: true
+                armed: introA.enabled
+                onAct: control.replayIntro()
+            }
+            Sw {
+                on: introA.enabled
+                Accessible.name: I18n.tr("LOGIN INTRO")
+                onToggled: (v) => control.introSet("enabled", v)
+            }
+        }
+
+        Text {
+            Layout.fillWidth: true
+            text: I18n.tr("An animated title in place of the wordmark while the desktop loads. Changes save at once and show in the preview above.")
+            color: Tokens.inkMuted
+            font.family: Tokens.ui
+            font.pixelSize: Tokens.fSmall
+            wrapMode: Text.WordWrap
+        }
+
+        GridLayout {
+            Layout.fillWidth: true
+            columns: grid.columns
+            columnSpacing: Tokens.s5
+            rowSpacing: Tokens.s3
+            enabled: introA.enabled
+            opacity: introA.enabled ? 1 : 0.5
+
+            IntroField { label: I18n.tr("TITLE"); hint: "ANDERSONK"; value: introA.title; onValueEdited: (v) => control.introSet("title", v) }
+            IntroField { label: I18n.tr("DESCRIPTION"); hint: "Full Stack Developer"; value: introA.subtitle; onValueEdited: (v) => control.introSet("subtitle", v) }
+            IntroField { label: I18n.tr("SECOND LINE"); hint: "React · Next.js · Node.js"; value: introA.tagline; onValueEdited: (v) => control.introSet("tagline", v) }
+            IntroField { label: I18n.tr("SEAL"); hint: "ACCESS GRANTED"; value: introA.header; onValueEdited: (v) => control.introSet("header", v) }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.columnSpan: grid.columns
+                spacing: Tokens.s1
+                IntroLabel { text: I18n.tr("PLAY ON") }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.s3
+                    Seg {
+                        implicitHeight: Tokens.ctlH
+                        options: ["always", "once"]
+                        labels: ({ "always": I18n.tr("EVERY LOGIN"), "once": I18n.tr("FIRST LOGIN ONLY") })
+                        current: introA.showMode === "once" ? "once" : "always"
+                        onChose: (k) => control.introSet("showMode", k)
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: introA.showMode === "once"
+                        text: control.introSeen
+                            ? I18n.tr("Already played on a login; later logins show the wordmark.")
+                            : I18n.tr("Plays on the next login, then the wordmark returns.")
+                        color: Tokens.inkMuted
+                        font.family: Tokens.ui
+                        font.pixelSize: Tokens.fSmall
+                        elide: Text.ElideRight
+                    }
+                    Btn {
+                        visible: introA.showMode === "once" && control.introSeen
+                        text: I18n.tr("SHOW AGAIN")
+                        compact: true
+                        onAct: control.introRearm()
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Tokens.s1
+                IntroLabel { text: I18n.tr("TITLE STYLE") }
+                Seg {
+                    Layout.fillWidth: true
+                    implicitHeight: Tokens.ctlH
+                    options: ["pixel", "terminal"]
+                    labels: ({ "pixel": I18n.tr("PIXEL"), "terminal": I18n.tr("TERMINAL") })
+                    current: introA.style === "terminal" ? "terminal" : "pixel"
+                    onChose: (k) => control.introSet("style", k)
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Tokens.s2
+                IntroLabel { text: I18n.tr("MINIMUM HOLD") }
+                Item { Layout.fillWidth: true }
+                Text {
+                    text: Math.round(Number(introA.minHold) || 0) === 0 ? I18n.tr("OFF")
+                        : I18n.tr("%1 S").arg(Math.round(Number(introA.minHold) || 0))
+                    color: Tokens.ink
+                    font.family: Tokens.mono
+                    font.pixelSize: Tokens.fSmall
+                    font.weight: Font.Medium
+                }
+                Step {
+                    value: Math.round(Number(introA.minHold) || 0)
+                    from: 0
+                    to: 10
+                    stepBy: 1
+                    onModified: (v) => control.introSet("minHold", v)
+                }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Tokens.s1
+                IntroLabel { text: I18n.tr("ACCENT") }
+                ColorField {
+                    Layout.fillWidth: true
+                    implicitHeight: 32
+                    value: introA.accent
+                    onChosen: (v) => control.introSet("accent", v)
+                }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Tokens.s1
+                IntroLabel { text: I18n.tr("SECOND ACCENT") }
+                ColorField {
+                    Layout.fillWidth: true
+                    implicitHeight: 32
+                    value: introA.accent2
+                    onChosen: (v) => control.introSet("accent2", v)
+                }
+            }
+
+            IntroSwitch { label: I18n.tr("CODE RAIN"); on: introA.rain; onFlipped: (v) => control.introSet("rain", v) }
+            IntroSwitch { label: I18n.tr("GLITCH"); on: introA.glitch; onFlipped: (v) => control.introSet("glitch", v) }
+            IntroSwitch { label: I18n.tr("SCANLINES"); on: introA.scanlines; onFlipped: (v) => control.introSet("scanlines", v) }
+            IntroSwitch { label: I18n.tr("BOOT LOG"); on: introA.bootLog; onFlipped: (v) => control.introSet("bootLog", v) }
+        }
+
+        Text {
+            Layout.fillWidth: true
+            text: I18n.tr("Minimum hold keeps the login cover up until the intro has played; shell reloads never wait. The preview above always plays.")
+            color: Tokens.inkDim
+            font.family: Tokens.ui
+            font.pixelSize: Tokens.fSmall
+            wrapMode: Text.WordWrap
         }
     }
 }
