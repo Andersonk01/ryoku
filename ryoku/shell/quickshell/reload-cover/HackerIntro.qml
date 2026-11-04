@@ -6,6 +6,7 @@ import Quickshell.Io
 import Qt5Compat.GraphicalEffects
 import Ryoku.Ui.Singletons
 import "PixelFont.js" as PixelFont
+import "IntroAudio.js" as IntroAudio
 
 // The user's own login intro: a decrypting title, a typed tagline and a quiet
 // terminal HUD, drawn on the reload cover in place of the Ryoku wordmark.
@@ -16,7 +17,12 @@ Item {
     id: intro
 
     property bool active: true
+    // the cover's fade (ReloadMedia binds it); the sound beds follow it
+    property real presence: 1
     readonly property string mode: Quickshell.env("RYOKU_RELOAD_COVER_MODE") || ""
+    // unlock-watch.sh replays the intro after the screen unlocks, on a reload
+    // cover (its iris closes over the desktop) tagged with this reason
+    readonly property bool unlockCover: mode === "reload" && Quickshell.env("RYOKU_INTRO_REASON") === "unlock"
     readonly property real s: Math.max(0.12, Math.min(width / 1920, height / 1080))
     readonly property bool calm: Tokens.reduceMotion
     readonly property string mono: "JetBrainsMono Nerd Font"
@@ -45,6 +51,14 @@ Item {
             property bool scanlines: true
             property bool bootLog: true
             property real minHold: 3
+            property bool sound: true
+            property real soundVolume: 70
+            property bool soundTyping: true
+            property bool soundDecode: true
+            property bool soundGranted: true
+            property bool soundGlitch: true
+            property bool soundAmbience: true
+            property bool soundBoot: true
         }
     }
     Connections {
@@ -109,37 +123,120 @@ Item {
     readonly property real typeEnd: typeStart + typeStep * subText.length
     readonly property real tagAt: typeEnd + 140
     readonly property real total: tagAt + 600
+    function typedAt(x) {
+        return x < typeStart ? 0 : Math.min(subText.length, Math.floor((x - typeStart) / typeStep));
+    }
+    // A reload cover fades in with its iris (about half a second), so its
+    // clock starts a little in the past: the title decodes once it shows.
+    readonly property real lead: mode === "reload" ? 320 : 0
+    readonly property var logTimes: [220, 520, 820, typeEnd]
 
     property real t: 0
-    readonly property int tick: Math.floor(t / 50)
+    readonly property int tick: Math.floor(Math.max(0, t) / 50)
     property bool lockFired: false
+    property real lastT: -1e9
+    property bool bootSounded: false
 
     NumberAnimation {
         id: clock
         target: intro
         property: "t"
-        from: 0
+        from: -intro.lead
         to: intro.total
-        duration: intro.total
+        duration: intro.total + intro.lead
         paused: running && !intro.active
     }
-    function restart() {
+    // fromUser: the Hub's REPLAY, the one preview restart that may sound
+    function restart(fromUser) {
         clock.stop();
         lockFired = false;
         glitch = 0;
+        previewArmed = mode === "" && fromUser === true;
+        bootSounded = false;
+        lastT = -1e9;
+        grantedDelay.stop();
+        if (sfx.item) sfx.item.stopAll();
         if (calm) {
             t = total;
+            lastT = total;
             return;
         }
-        t = 0;
+        t = -lead;
         clock.start();
     }
-    Component.onCompleted: restart()
+    Component.onCompleted: {
+        soundOwner = IntroAudio.claim(intro);
+        restart();
+    }
+    Component.onDestruction: IntroAudio.release(intro)
+    function crossed(a, b, x) { return a < x && b >= x; }
     onTChanged: {
+        var a = lastT, b = t;
+        lastT = t;
         if (!lockFired && t >= decodeEnd) {
             lockFired = true;
             if (cfg.glitch && !calm) fireGlitch();
         }
+        if (b <= a || !soundOn || !sfx.item) return;
+        var fx = sfx.item;
+        if (!bootSounded && b >= 0) {
+            bootSounded = true;
+            fx.bootHit();
+            fx.humStart();
+        }
+        if (crossed(a, b, decodeStart)) fx.dataStart();
+        // one tick per frame at most, for the letter that just locked
+        for (var i = n - 1; i >= 0; i--) {
+            if (crossed(a, b, revealAt(i))) {
+                if (titleText[i] !== " ") fx.tick(i);
+                break;
+            }
+        }
+        if (crossed(a, b, decodeEnd)) {
+            fx.dataStop();
+            grantedDelay.restart();
+        }
+        var ta = typedAt(a), tb = typedAt(b);
+        if (tb > ta) fx.key(subText[tb - 1]);
+        if (cfg.bootLog) {
+            for (var k = 0; k < logTimes.length; k++)
+                if (crossed(a, b, logTimes[k])) { fx.logLine(); break; }
+        }
+        if (crossed(a, b, tagAt) && String(cfg.tagline || "") !== "") fx.readyHit();
+        // the preview lets its drone go when the entrance is over; a cover
+        // keeps it until the cover itself fades out
+        if (mode === "" && crossed(a, b, total)) fx.humStop();
+    }
+
+    // ── sound ────────────────────────────────────────────────────────────
+    // Plays on a login, after an unlock and on the Hub's REPLAY; a plain
+    // shell reload stays silent. Only one screen's intro owns the speakers.
+    property bool soundOwner: false
+    property bool previewArmed: false
+    readonly property bool soundOn: cfg.sound && soundOwner && !calm
+        && (mode === "boot" || unlockCover || previewArmed)
+    onSoundOnChanged: if (!soundOn && sfx.item) sfx.item.stopAll()
+    Loader {
+        id: sfx
+        active: cfg.sound && intro.soundOwner && (intro.mode === "boot" || intro.unlockCover || intro.mode === "")
+        source: active ? Qt.resolvedUrl("IntroSound.qml") : ""
+        onLoaded: {
+            if (status !== Loader.Ready || !item) return;
+            item.volume = Qt.binding(() => Math.max(0, Math.min(100, Number(cfg.soundVolume) || 0)) / 100);
+            item.presence = Qt.binding(() => intro.presence);
+            item.typing = Qt.binding(() => cfg.soundTyping);
+            item.decode = Qt.binding(() => cfg.soundDecode);
+            item.granted = Qt.binding(() => cfg.soundGranted);
+            item.glitch = Qt.binding(() => cfg.soundGlitch);
+            item.ambience = Qt.binding(() => cfg.soundAmbience);
+            item.boot = Qt.binding(() => cfg.soundBoot);
+        }
+    }
+    // the chime lands just after the glitch's crunch
+    Timer {
+        id: grantedDelay
+        interval: 110
+        onTriggered: if (intro.soundOn && sfx.item) sfx.item.accessGranted()
     }
 
     function hash(i, k) {
@@ -168,6 +265,8 @@ Item {
     function fireGlitch() {
         seed = Math.random();
         glitchAnim.restart();
+        // only the entrance's glitches sound; the idle ones stay quiet
+        if (soundOn && sfx.item && t <= total) sfx.item.glitchHit();
     }
     SequentialAnimation {
         id: glitchAnim
@@ -459,8 +558,7 @@ Item {
             width: subMetrics.advanceWidth + cursor.width + cursor.anchors.leftMargin
             height: subMetrics.height
             visible: intro.subText !== ""
-            readonly property int typed: intro.calm ? intro.subText.length
-                : Math.max(0, Math.min(intro.subText.length, Math.floor((intro.t - intro.typeStart) / intro.typeStep)))
+            readonly property int typed: intro.calm ? intro.subText.length : intro.typedAt(intro.t)
             opacity: intro.calm || intro.t >= intro.typeStart - 80 ? 1 : 0
 
             TextMetrics {
@@ -555,7 +653,8 @@ Item {
                 font.pixelSize: Math.max(5, Math.round(13 * intro.s))
             }
             Text {
-                text: intro.mode === "reload" ? I18n.tr("SHELL RELOADING")
+                text: intro.unlockCover ? I18n.tr("SESSION UNLOCKED")
+                    : intro.mode === "reload" ? I18n.tr("SHELL RELOADING")
                     : (intro.mode === "boot" ? I18n.tr("LOADING DESKTOP") : I18n.tr("PREVIEW"))
                 color: intro.ink
                 opacity: 0.62
@@ -611,7 +710,7 @@ Item {
                 textFormat: Text.StyledText
                 text: tagHtml + "&nbsp;<font color=\"" + intro.hex(intro.dim) + "\">" + leader.replace(/ /g, "&nbsp;") + "&nbsp;</font>"
                     + "<font color=\"" + intro.hex(intro.mix(intro.dim, intro.ink, 0.55)) + "\">"
-                    + (modelData.live ? (intro.mode === "reload" ? "reloading" : "loading") : String(modelData.value).split("").map(intro.esc).join(""))
+                    + (modelData.live ? (intro.unlockCover ? "resuming" : intro.mode === "reload" ? "reloading" : "loading") : String(modelData.value).split("").map(intro.esc).join(""))
                     + "</font>"
                 font.family: intro.mono
                 font.pixelSize: Math.max(5, Math.round(12 * intro.s))

@@ -69,9 +69,11 @@ Item {
     }
     readonly property bool introReady: wantsIntro && !forceDefault
         && introLoader.status === Loader.Ready && introLoader.item !== null
+    // a replay asked for by the user (the Hub's REPLAY) may sound; the
+    // preview's own restarts, after an edit, stay silent
     function replayIntro(): void {
         if (introLoader.item)
-            introLoader.item.restart();
+            introLoader.item.restart(true);
     }
 
     readonly property bool wantsVideo: !wantsIntro && customEnabled && mediaPath !== "" && mediaKind === "video"
@@ -170,6 +172,8 @@ Item {
         onLoaded: {
             if (status === Loader.Ready && item) {
                 item.active = Qt.binding(() => root.active && !root.forceDefault)
+                // the cover's fade in and out, which the intro's sound beds follow
+                item.presence = Qt.binding(() => root.opacity)
                 root.markIntroSeen()
             }
         }

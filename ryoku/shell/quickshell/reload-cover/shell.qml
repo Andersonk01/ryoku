@@ -25,15 +25,23 @@ ShellRoot {
     // process 0.55 s after a finish call returns true, so a finish that comes
     // before minHold elapses answers false and the cover opens itself when the
     // hold is over (the launcher's retries give up quietly; the shell ignores
-    // their exit code). Boot only: a shell reload never waits.
+    // their exit code). Boot and the after-unlock intro only: a shell reload
+    // never waits.
     readonly property real bornAt: Date.now()
     readonly property string introPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/intro.json"
     // the same "once" rule ReloadMedia applies: no intro, no hold
     readonly property string introSeen: (introSeenFile.text() || "").trim()
     readonly property bool introPlays: introAdapter.enabled
         && (introAdapter.showMode !== "once" || introSeen === "" || introSeen === token)
-    readonly property int minHoldMs: mode === "boot" && introPlays
-        ? Math.round(Math.max(0, Math.min(10, Number(introAdapter.minHold) || 0)) * 1000) : 0
+    // The intro after an unlock (unlock-watch.sh) rides a reload cover, for
+    // its iris close over the desktop, and holds too: nothing loads there, so
+    // a hold of OFF still gives the intro its 3 s.
+    readonly property bool unlockCover: mode === "reload" && Quickshell.env("RYOKU_INTRO_REASON") === "unlock"
+    readonly property real holdSeconds: Math.max(0, Math.min(10, Number(introAdapter.minHold) || 0))
+    readonly property int minHoldMs: !introPlays ? 0
+        : mode === "boot" ? Math.round(holdSeconds * 1000)
+        : unlockCover ? Math.round((holdSeconds > 0 ? holdSeconds : 3) * 1000)
+        : 0
     property bool releaseDeferred: false
     FileView {
         path: root.introPath

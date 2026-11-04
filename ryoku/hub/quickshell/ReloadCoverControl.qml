@@ -52,6 +52,15 @@ Item {
             property bool bootLog: true
             property real minHold: 3
             property string showMode: "always"
+            property bool afterUnlock: true
+            property bool sound: true
+            property real soundVolume: 70
+            property bool soundTyping: true
+            property bool soundDecode: true
+            property bool soundGranted: true
+            property bool soundGlitch: true
+            property bool soundAmbience: true
+            property bool soundBoot: true
         }
     }
     // "once" bookkeeping: the boot cover that first plays the intro writes its
@@ -422,6 +431,23 @@ Item {
                         compact: true
                         onAct: control.introRearm()
                     }
+                    // every-login mode can replay after the lock screen too
+                    // (unlock-watch.sh, the intro-unlock user service)
+                    Item {
+                        Layout.fillWidth: true
+                        visible: introA.showMode !== "once"
+                    }
+                    IntroLabel {
+                        visible: introA.showMode !== "once"
+                        text: I18n.tr("ALSO AFTER UNLOCK")
+                        color: Tokens.ink
+                    }
+                    Sw {
+                        visible: introA.showMode !== "once"
+                        on: introA.afterUnlock
+                        Accessible.name: I18n.tr("ALSO AFTER UNLOCK")
+                        onToggled: (v) => control.introSet("afterUnlock", v)
+                    }
                 }
             }
 
@@ -486,11 +512,69 @@ Item {
             IntroSwitch { label: I18n.tr("GLITCH"); on: introA.glitch; onFlipped: (v) => control.introSet("glitch", v) }
             IntroSwitch { label: I18n.tr("SCANLINES"); on: introA.scanlines; onFlipped: (v) => control.introSet("scanlines", v) }
             IntroSwitch { label: I18n.tr("BOOT LOG"); on: introA.bootLog; onFlipped: (v) => control.introSet("bootLog", v) }
+
+            // ── sound: in the same grid, so its switches line up ─────────
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.columnSpan: grid.columns
+                Layout.topMargin: Tokens.s2
+                spacing: Tokens.s2
+                Text {
+                    text: I18n.tr("SOUND")
+                    color: Tokens.ink
+                    font.family: Tokens.mono
+                    font.pixelSize: Tokens.fMicro
+                    font.weight: Font.Medium
+                    font.letterSpacing: Tokens.trackLabel
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: I18n.tr("Keys typing, decrypt ticks, the access chime and a low drone. REPLAY plays it with sound.")
+                    color: Tokens.inkMuted
+                    font.family: Tokens.ui
+                    font.pixelSize: Tokens.fSmall
+                    elide: Text.ElideRight
+                }
+                Sw {
+                    on: introA.sound
+                    Accessible.name: I18n.tr("SOUND")
+                    onToggled: (v) => control.introSet("sound", v)
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.columnSpan: grid.columns
+                spacing: Tokens.s2
+                enabled: introA.sound
+                opacity: introA.sound ? 1 : 0.5
+                IntroLabel { text: I18n.tr("VOLUME") }
+                Item { Layout.fillWidth: true }
+                Text {
+                    text: I18n.tr("%1%").arg(Math.round(Number(introA.soundVolume) || 0))
+                    color: Tokens.ink
+                    font.family: Tokens.mono
+                    font.pixelSize: Tokens.fSmall
+                    font.weight: Font.Medium
+                }
+                Step {
+                    value: Math.round(Number(introA.soundVolume) || 0)
+                    from: 0
+                    to: 100
+                    stepBy: 10
+                    onModified: (v) => control.introSet("soundVolume", v)
+                }
+            }
+            IntroSwitch { label: I18n.tr("TYPING"); enabled: introA.sound; opacity: introA.sound ? 1 : 0.5; on: introA.soundTyping; onFlipped: (v) => control.introSet("soundTyping", v) }
+            IntroSwitch { label: I18n.tr("DECRYPT TICKS"); enabled: introA.sound; opacity: introA.sound ? 1 : 0.5; on: introA.soundDecode; onFlipped: (v) => control.introSet("soundDecode", v) }
+            IntroSwitch { label: I18n.tr("ACCESS CHIME"); enabled: introA.sound; opacity: introA.sound ? 1 : 0.5; on: introA.soundGranted; onFlipped: (v) => control.introSet("soundGranted", v) }
+            IntroSwitch { label: I18n.tr("GLITCH NOISE"); enabled: introA.sound; opacity: introA.sound ? 1 : 0.5; on: introA.soundGlitch; onFlipped: (v) => control.introSet("soundGlitch", v) }
+            IntroSwitch { label: I18n.tr("AMBIENT DRONE"); enabled: introA.sound; opacity: introA.sound ? 1 : 0.5; on: introA.soundAmbience; onFlipped: (v) => control.introSet("soundAmbience", v) }
+            IntroSwitch { label: I18n.tr("BOOT & LOG BLIPS"); enabled: introA.sound; opacity: introA.sound ? 1 : 0.5; on: introA.soundBoot; onFlipped: (v) => control.introSet("soundBoot", v) }
         }
 
         Text {
             Layout.fillWidth: true
-            text: I18n.tr("Minimum hold keeps the login cover up until the intro has played; shell reloads never wait. The preview above always plays.")
+            text: I18n.tr("Minimum hold keeps the login cover up until the intro has played; after an unlock it holds that long too (3 s when OFF). Sound plays on login, after an unlock and on REPLAY; shell reloads stay silent and never wait.")
             color: Tokens.inkDim
             font.family: Tokens.ui
             font.pixelSize: Tokens.fSmall

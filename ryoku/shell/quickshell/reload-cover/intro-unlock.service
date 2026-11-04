@@ -1,0 +1,17 @@
+# [user] Replays the login intro after the screen unlocks: see unlock-watch.sh.
+# Installed as ~/.config/systemd/user/intro-unlock.service and enabled with
+#   systemctl --user enable --now intro-unlock.service
+[Unit]
+Description=Login intro: replay after unlock
+PartOf=graphical-session.target
+After=graphical-session.target ryoku-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/bash %h/.config/quickshell/reload-cover/unlock-watch.sh
+Restart=always
+RestartSec=3
+Slice=session.slice
+
+[Install]
+WantedBy=graphical-session.target
