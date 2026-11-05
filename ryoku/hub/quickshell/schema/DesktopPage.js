@@ -9,6 +9,15 @@ var rows = [{
         "ctl": "reload-cover",
         "src": "brand"
     },{
+        // [user] the Pestinha desktop pet; PestinhaControl.qml saves on its own
+        "tab": "Pestinha",
+        "group": "DESKTOP PET",
+        "key": "pestinha",
+        "label": "Pestinha",
+        "desc": "A screen pet with its own neural network",
+        "ctl": "pestinha",
+        "src": "none"
+    },{
         "tab": "Notifications",
         "group": "APPEARANCE",
         "key": "notifications.show_images",

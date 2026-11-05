@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+# ryoku-pestinha: liga, desliga e configura o Pestinha (pet de tela) no Ryoku.
+#
+# O Pestinha (github.com/Andersonk01/pestinha, branch hyprland) mora num
+# checkout (padrão ~/Projects/pestinha, com o venv em .venv) e roda pelo
+# XWayland; as regras de janela e o atalho de pânico estão em
+# hypr/modules/pestinha.lua (ou no hypr/user.lua). Este comando é o que o Hub
+# (Desktop > Pestinha), o atalho e o login chamam.
+#
+#   ryoku-pestinha status              estado em JSON (o Hub lê isto)
+#   ryoku-pestinha on | off            liga (agora e nos próximos logins) | desliga
+#   ryoku-pestinha start | stop | restart
+#   ryoku-pestinha autostart           no login: abre se estiver ligado
+#   ryoku-pestinha pet <id>            troca o personagem (bryan, jorge...)
+#   ryoku-pestinha set chave=on|off... muda permissões (bolinha, fogos, memes...)
+#   ryoku-pestinha panic | religar | settings | pause | hide
+#
+# Config: ~/.config/ryoku/pestinha.json  {"enabled": bool, "dir": "<checkout>"}
+set -u
+
+cfg="${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/pestinha.json"
+log_dir="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku"
+
+conf() {  # conf <chave> <padrão>
+    local v
+    v=$(jq -r --arg k "$1" 'if has($k) then .[$k] | tostring else empty end' "$cfg" 2>/dev/null)
+    printf '%s' "${v:-$2}"
+}
+
+dir=$(conf dir "$HOME/Projects/pestinha")
+dir="${dir/#\~/$HOME}"
+py="$dir/.venv/bin/python"
+ctl="$dir/ferramentas/pestinha_ctl.py"
+perms_file="$dir/memory/permissions.json"
+
+installed() { [[ -x $py && -f $dir/main.py && -f $ctl ]]; }
+
+# o controle local responde: o pet está rodando
+ctl() { python3 -I "$ctl" "$@"; }
+running() { installed && ctl status >/dev/null 2>&1; }
+
+# o processo do pet (mesmo antes de o controle abrir, como na tela de boas-vindas): só o
+# "<venv>/python <checkout>/main.py" que este comando abre, nunca um editor com o main.py aberto
+re_escape() { sed 's/[][\.^$*+?(){}|/]/\\&/g' <<<"$1"; }
+pet_pattern="^$(re_escape "$py") $(re_escape "$dir/main.py")( |\$)"
+pet_pids() { pgrep -u "$(id -u)" -f -- "$pet_pattern" 2>/dev/null; }
+
+set_conf() {  # set_conf <chave> <valor JSON>
+    mkdir -p "$(dirname "$cfg")"
+    local tmp
+    tmp=$(mktemp "$cfg.XXXXXX") || return 1
+    if [[ -s $cfg ]] && jq --arg k "$1" --argjson v "$2" '.[$k] = $v' "$cfg" >"$tmp" 2>/dev/null; then
+        :
+    else
+        jq -n --arg k "$1" --argjson v "$2" '{($k): $v}' >"$tmp"
+    fi
+    mv -f "$tmp" "$cfg"
+}
+
+start() {
+    installed || { echo "ryoku-pestinha: Pestinha não encontrado em $dir" >&2; return 1; }
+    if [[ -n $(pet_pids) ]]; then return 0; fi
+    mkdir -p "$log_dir"
+    local out="$log_dir/pestinha.log"
+    # o pet escreve o log dele em memory/logs; aqui fica só a saída do terminal, curta
+    if [[ -f $out && $(stat -c %s "$out" 2>/dev/null || echo 0) -gt 1048576 ]]; then
+        tail -c 262144 "$out" >"$out.tmp" && mv -f "$out.tmp" "$out"
+    fi
+    # --direto: as permissões já foram escolhidas uma vez (na primeira vez a tela aparece mesmo assim)
+    (cd "$dir" && setsid "$py" "$dir/main.py" --direto "$@" >>"$out" 2>&1 </dev/null &)
+    local i
+    for ((i = 0; i < 50; i++)); do
+        sleep 0.1
+        running && return 0
+    done
+    # a tela de boas-vindas (primeira vez) ainda pode estar aberta: vale como aberto
+    [[ -n $(pet_pids) ]]
+}
+
+stop() {
+    local pids i
+    pids=$(pet_pids)
+    [[ -n $pids ]] || return 0
+    ctl sair >/dev/null 2>&1
+    for ((i = 0; i < 50; i++)); do
+        [[ -n $(pet_pids) ]] || return 0
+        sleep 0.1
+    done
+    # não respondeu (tela de boas-vindas aberta, travado): encerra
+    kill $(pet_pids) 2>/dev/null
+}
+
+# muda permissões no arquivo, com o pet fechado (com ele aberto, o controle local faz isso)
+edit_perms() {  # edit_perms <filtro jq> [args...]
+    [[ -f $perms_file ]] || { echo "ryoku-pestinha: abra o Pestinha uma vez antes" >&2; return 1; }
+    local tmp
+    tmp=$(mktemp "$perms_file.XXXXXX") || return 1
+    if jq "$@" "$perms_file" >"$tmp"; then
+        mv -f "$tmp" "$perms_file"
+    else
+        rm -f "$tmp"
+        return 1
+    fi
+}
+
+# o login abre o pet se houver um gancho `ryoku-pestinha autostart` na config do Hyprland
+login_hook() {
+    local hypr="${XDG_CONFIG_HOME:-$HOME/.config}/hypr"
+    grep -qsE '^[^-]*ryoku-pestinha autostart' "$hypr/user.lua" "$hypr"/modules/*.lua && echo true || echo false
+}
+
+status() {
+    local enabled pets live login
+    enabled=$(conf enabled false)
+    login=$(login_hook)
+    pets=$(if [[ -d $dir/pets ]]; then
+        find "$dir/pets" -maxdepth 1 -name '*.json' -printf '%f\n' | sed 's/\.json$//' | sort | jq -R . | jq -sc .
+    else echo '[]'; fi)
+    if installed && live=$(ctl status 2>/dev/null); then
+        jq -c --argjson en "$enabled" --argjson pets "$pets" --arg dir "$dir" --argjson login "$login" \
+            '{installed: true, enabled: $en, running: true, starting: false, dir: $dir, pets: $pets,
+              login: $login, configured: true} + del(.ok)' <<<"$live"
+        return
+    fi
+    local starting=false saved='{}'
+    [[ -n $(pet_pids) ]] && starting=true
+    [[ -f $perms_file ]] && saved=$(jq -c . "$perms_file" 2>/dev/null || echo '{}')
+    jq -nc --argjson inst "$(installed && echo true || echo false)" --argjson en "$enabled" \
+        --argjson st "$starting" --argjson pets "$pets" --arg dir "$dir" --argjson saved "$saved" \
+        --argjson login "$login" \
+        '{installed: $inst, enabled: $en, running: false, starting: $st, dir: $dir, pets: $pets, login: $login,
+          configured: ($saved.configurado // false), pet: ($saved.pet // "bryan"), ativo: ($saved.ativo // true),
+          perms: ($saved | del(.ativo, .configurado, .pet))}'
+}
+
+valid_key() { [[ $1 =~ ^[a-z_]{1,40}$ ]]; }
+
+cmd="${1:-status}"
+shift || true
+case $cmd in
+    status) status ;;
+    on)
+        set_conf enabled true && start ;;
+    off)
+        set_conf enabled false && stop ;;
+    start) start ;;
+    stop) stop ;;
+    restart) stop; start ;;
+    autostart)
+        [[ $(conf enabled false) == true ]] || exit 0
+        start ;;
+    pet)
+        id="${1:-}"
+        [[ $id =~ ^[a-z0-9][a-z0-9_-]{0,39}$ && -f $dir/pets/$id.json ]] || { echo "ryoku-pestinha: personagem desconhecido: $id" >&2; exit 2; }
+        if [[ -n $(pet_pids) ]]; then
+            stop && start --pet "$id"
+        else
+            edit_perms --arg p "$id" '.pet = $p'
+        fi ;;
+    set)
+        (($#)) || { echo "ryoku-pestinha: set chave=on|off..." >&2; exit 2; }
+        for kv in "$@"; do
+            valid_key "${kv%%=*}" || { echo "ryoku-pestinha: chave inválida: $kv" >&2; exit 2; }
+        done
+        if running; then
+            ctl perms "$@" >/dev/null
+        else
+            filtro='.'
+            args=()
+            for kv in "$@"; do
+                k="${kv%%=*}" v="${kv#*=}"
+                case ${v,,} in
+                    on|true|1) v=true ;;
+                    off|false|0) v=false ;;
+                    *) echo "ryoku-pestinha: $k precisa ser on/off" >&2; exit 2 ;;
+                esac
+                [[ $k == ativo || $k == configurado || $k == pet ]] && continue
+                filtro+=" | .[\"$k\"] = $v"
+            done
+            edit_perms "$filtro"
+        fi ;;
+    panic) running && ctl panico >/dev/null ;;
+    religar) running && ctl religar >/dev/null ;;
+    settings)
+        if running; then ctl configuracoes >/dev/null; else start; fi ;;
+    pause) running && ctl pausar >/dev/null ;;
+    hide) running && ctl esconder >/dev/null ;;
+    -h|--help|help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//' ;;
+    *) echo "ryoku-pestinha: comando desconhecido: $cmd" >&2; exit 2 ;;
+esac

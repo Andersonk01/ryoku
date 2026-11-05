@@ -298,6 +298,7 @@ Item {
     function ctlBlock(r) {
         var c = r.ctl, n = sheet.optsFor(r).length;
         if (c === "chips" || c === "multi" || c === "layoutdemo" || c === "reload-cover" || c === "list") return true;
+        if (c === "pestinha") return true;      // [user] the Pestinha panel lays itself out
         if (c === "seg" && n >= 3) return true;
         return false;
     }
@@ -491,6 +492,7 @@ Item {
                                             case "list": return listC;
                                             case "pick": return pickC;
                                             case "reload-cover": return reloadCoverC;
+                                            case "pestinha": return pestinhaC;
                                             case "app": return appC;
                                             case "location": return locationC;
                                             case "color": return colorC;
@@ -854,6 +856,12 @@ Item {
                                                     }
                                                 }
                                             }
+                                        }
+                                    }
+                                    Component {
+                                        id: pestinhaC
+                                        PestinhaControl {
+                                            anchors.fill: parent
                                         }
                                     }
                                     Component {
