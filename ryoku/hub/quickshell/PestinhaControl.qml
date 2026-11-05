@@ -8,8 +8,8 @@ import Ryoku.Ui
 import Ryoku.Ui.Singletons
 
 // [user] Pestinha, the desktop pet (~/Projects/pestinha, Hyprland port on the
-// `hyprland` branch): turn it on or off, pick the character and choose what it
-// may do. Everything goes through `ryoku-pestinha`: with the pet
+// `hyprland` branch): turn it on or off, pick the character (each one described
+// by its pets/<id>.json) and choose what it may do. docs/pestinha.md. Everything goes through `ryoku-pestinha`: with the pet
 // open it talks to the pet's local control socket, with the pet closed it edits
 // the pet's saved permissions. Saves at once, outside the Hub's Save.
 Item {
@@ -26,8 +26,22 @@ Item {
     readonly property bool panico: running && st.ativo === false
     readonly property var perms: st.perms || ({})
     readonly property var pets: Array.isArray(st.pets) && st.pets.length ? st.pets : ["bryan"]
+    // {id: {nome, descricao}}, read from each pets/<id>.json; the description is the pet's own text
+    readonly property var petInfo: st.pet_info || ({})
+    readonly property string currentPet: String(st.pet || "bryan")
     readonly property bool canTune: installed && (running || st.configured === true) && pending === ""
 
+    function petName(id) {
+        var info = control.petInfo[id] || {};
+        return String(info.nome || id);
+    }
+    // a new character restarts a running pet, or is saved for its next start
+    function choosePet(k) {
+        if (k === control.currentPet)
+            return;
+        control.st = Object.assign({}, control.st, { pet: k });
+        control.run(["pet", k]);
+    }
     function refresh() {
         if (!statusP.running)
             statusP.running = true;
@@ -174,6 +188,7 @@ Item {
         }
 
         GridLayout {
+            id: grid
             Layout.fillWidth: true
             columns: control.width >= Tokens.px(720) ? 2 : 1
             columnSpacing: Tokens.s5
@@ -193,16 +208,11 @@ Item {
                     labels: {
                         var m = {};
                         for (var i = 0; i < control.pets.length; i++)
-                            m[control.pets[i]] = String(control.pets[i]).toUpperCase();
+                            m[control.pets[i]] = control.petName(control.pets[i]).toUpperCase();
                         return m;
                     }
-                    current: String(control.st.pet || "bryan")
-                    onChose: (k) => {
-                        if (k === control.st.pet)
-                            return;
-                        control.st = Object.assign({}, control.st, { pet: k });
-                        control.run(["pet", k]);
-                    }
+                    current: control.currentPet
+                    onChose: (k) => control.choosePet(k)
                 }
             }
             ColumnLayout {
@@ -266,7 +276,63 @@ Item {
             }
 
             PLabel {
-                Layout.columnSpan: parent.columns
+                Layout.columnSpan: grid.columns
+                Layout.topMargin: Tokens.s2
+                text: I18n.tr("THE CHARACTERS · WHO EACH ONE IS")
+                color: Tokens.ink
+            }
+            Repeater {
+                model: control.pets
+                delegate: Rectangle {
+                    id: card
+                    required property string modelData
+                    readonly property bool current: modelData === control.currentPet
+                    readonly property string about: String((control.petInfo[modelData] || {}).descricao || "")
+                    Layout.columnSpan: grid.columns
+                    Layout.fillWidth: true
+                    implicitHeight: cardCol.implicitHeight + 2 * Tokens.s3
+                    radius: Tokens.radius
+                    color: "transparent"
+                    border.width: Tokens.border
+                    border.color: current ? Tokens.sun : Tokens.lineSoft
+
+                    ColumnLayout {
+                        id: cardCol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: Tokens.s3
+                        spacing: Tokens.s1
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Tokens.s2
+                            PLabel {
+                                text: control.petName(card.modelData).toUpperCase()
+                                color: card.current ? Tokens.sun : Tokens.ink
+                            }
+                            Item { Layout.fillWidth: true }
+                            Btn {
+                                text: card.current ? I18n.tr("CHOSEN") : I18n.tr("CHOOSE")
+                                compact: true
+                                armed: !card.current && control.installed && control.pending === ""
+                                onAct: control.choosePet(card.modelData)
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: card.about !== "" ? card.about
+                                : I18n.tr("No description yet: add \"descricao\" to pets/%1.json.").arg(card.modelData)
+                            color: card.about !== "" ? Tokens.inkMuted : Tokens.inkFaint
+                            font.family: Tokens.ui
+                            font.pixelSize: Tokens.fSmall
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+                }
+            }
+
+            PLabel {
+                Layout.columnSpan: grid.columns
                 Layout.topMargin: Tokens.s2
                 text: I18n.tr("WHAT IT MAY DO")
                 color: Tokens.ink

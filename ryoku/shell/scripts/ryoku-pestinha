@@ -116,26 +116,43 @@ login_hook() {
     grep -qsE '^[^-]*ryoku-pestinha autostart' "$hypr/user.lua" "$hypr"/modules/*.lua && echo true || echo false
 }
 
+# quem é cada personagem: {id: {nome, descricao}} dos pets/<id>.json, com o mesmo id válido que o pet
+# aceita; um .json quebrado entra sem nome nem descrição (o Hub mostra o id)
+pet_info() {
+    local f id
+    for f in "$dir"/pets/*.json; do
+        [[ -f $f ]] || continue
+        id=$(basename "$f" .json)
+        [[ $id =~ ^[a-z0-9][a-z0-9_-]{0,39}$ ]] || continue
+        jq -c --arg id "$id" '{($id): {nome: (if (.nome | type) == "string" then .nome else null end),
+            descricao: (if (.descricao | type) == "string"
+                then .descricao | gsub("\\s+"; " ") | ltrimstr(" ") | rtrimstr(" ") | .[0:600] else "" end)}}' \
+            "$f" 2>/dev/null ||
+            jq -nc --arg id "$id" '{($id): {nome: null, descricao: ""}}'
+    done | jq -sc 'add // {}'
+}
+
 status() {
-    local enabled pets live login
+    local enabled pets info live login
     enabled=$(conf enabled false)
     login=$(login_hook)
-    pets=$(if [[ -d $dir/pets ]]; then
-        find "$dir/pets" -maxdepth 1 -name '*.json' -printf '%f\n' | sed 's/\.json$//' | sort | jq -R . | jq -sc .
-    else echo '[]'; fi)
+    info=$(pet_info)
+    pets=$(jq -c 'keys' <<<"$info")
     if installed && live=$(ctl status 2>/dev/null); then
-        jq -c --argjson en "$enabled" --argjson pets "$pets" --arg dir "$dir" --argjson login "$login" \
+        jq -c --argjson en "$enabled" --argjson pets "$pets" --argjson info "$info" --arg dir "$dir" \
+            --argjson login "$login" \
             '{installed: true, enabled: $en, running: true, starting: false, dir: $dir, pets: $pets,
-              login: $login, configured: true} + del(.ok)' <<<"$live"
+              pet_info: $info, login: $login, configured: true} + del(.ok)' <<<"$live"
         return
     fi
     local starting=false saved='{}'
     [[ -n $(pet_pids) ]] && starting=true
     [[ -f $perms_file ]] && saved=$(jq -c . "$perms_file" 2>/dev/null || echo '{}')
     jq -nc --argjson inst "$(installed && echo true || echo false)" --argjson en "$enabled" \
-        --argjson st "$starting" --argjson pets "$pets" --arg dir "$dir" --argjson saved "$saved" \
-        --argjson login "$login" \
-        '{installed: $inst, enabled: $en, running: false, starting: $st, dir: $dir, pets: $pets, login: $login,
+        --argjson st "$starting" --argjson pets "$pets" --argjson info "$info" --arg dir "$dir" \
+        --argjson saved "$saved" --argjson login "$login" \
+        '{installed: $inst, enabled: $en, running: false, starting: $st, dir: $dir, pets: $pets,
+          pet_info: $info, login: $login,
           configured: ($saved.configurado // false), pet: ($saved.pet // "bryan"), ativo: ($saved.ativo // true),
           perms: ($saved | del(.ativo, .configurado, .pet))}'
 }

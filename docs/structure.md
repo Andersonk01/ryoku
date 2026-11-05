@@ -22,8 +22,8 @@ Start with the guide that matches the job:
   rules](ui-ux.md), [bar styles](barstyles.md), [sidebars](sidebars.md),
   [launcher](launcher.md), [frame](frame.md), [Stage Editor](stage.md),
   [Ryogami](ryogami.md), [RyoStore](store.md), [profiles](profile.md),
-  [theming](theming.md), [performance](performance.md), [power](power.md) and
-  [plugins](plugins.md).
+  [theming](theming.md), [performance](performance.md), [power](power.md),
+  [plugins](plugins.md) and [Pestinha, the desktop pet](pestinha.md).
 - **Work on the repository:** [conventions](conventions.md),
   [development](development.md), [internationalization](i18n.md),
   [compositors](compositors.md), [adding a window
