@@ -12,7 +12,8 @@
 #   ryoku-pestinha start | stop | restart
 #   ryoku-pestinha autostart           no login: abre se estiver ligado
 #   ryoku-pestinha pet <id>            troca o personagem (bryan, jorge...)
-#   ryoku-pestinha set chave=on|off... muda permissões (bolinha, fogos, memes...)
+#   ryoku-pestinha set chave=on|off... muda permissões (bolinha, fogos, sons...),
+#                  estilo=<nome> volume=baixo|medio|alto   e as escolhas
 #   ryoku-pestinha panic | religar | settings | pause | hide
 #
 # Config: ~/.config/ryoku/pestinha.json  {"enabled": bool, "dir": "<checkout>"}
@@ -173,17 +174,26 @@ case $cmd in
         else
             filtro='.'
             args=()
+            i=0
             for kv in "$@"; do
                 k="${kv%%=*}" v="${kv#*=}"
-                case ${v,,} in
-                    on|true|1) v=true ;;
-                    off|false|0) v=false ;;
-                    *) echo "ryoku-pestinha: $k precisa ser on/off" >&2; exit 2 ;;
-                esac
                 [[ $k == ativo || $k == configurado || $k == pet ]] && continue
-                filtro+=" | .[\"$k\"] = $v"
+                case $k in
+                    estilo|volume)  # escolhas (estilo=cyber, volume=baixo): o pet confere se a opção existe
+                        [[ ${v,,} =~ ^[a-z0-9_-]{1,24}$ ]] || { echo "ryoku-pestinha: opção inválida: $kv" >&2; exit 2; }
+                        args+=(--arg "v$i" "${v,,}")
+                        filtro+=" | .[\"$k\"] = \$v$i" ;;
+                    *)
+                        case ${v,,} in
+                            on|true|1) v=true ;;
+                            off|false|0) v=false ;;
+                            *) echo "ryoku-pestinha: $k precisa ser on/off" >&2; exit 2 ;;
+                        esac
+                        filtro+=" | .[\"$k\"] = $v" ;;
+                esac
+                i=$((i + 1))
             done
-            edit_perms "$filtro"
+            edit_perms "${args[@]}" "$filtro"
         fi ;;
     panic) running && ctl panico >/dev/null ;;
     religar) running && ctl religar >/dev/null ;;
@@ -191,6 +201,6 @@ case $cmd in
         if running; then ctl configuracoes >/dev/null; else start; fi ;;
     pause) running && ctl pausar >/dev/null ;;
     hide) running && ctl esconder >/dev/null ;;
-    -h|--help|help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//' ;;
+    -h|--help|help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//' ;;
     *) echo "ryoku-pestinha: comando desconhecido: $cmd" >&2; exit 2 ;;
 esac

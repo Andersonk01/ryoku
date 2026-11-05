@@ -46,8 +46,22 @@ Item {
         control.st = Object.assign({}, control.st, { perms: p });
         control.run(["set", key + "=" + (value ? "on" : "off")]);
     }
+    // a pick between options (style, volume): same path as a switch, with the option as the value
+    function setChoice(key, value) {
+        if (control.choice(key) === value)
+            return;
+        var p = Object.assign({}, control.perms);
+        p[key] = value;
+        control.st = Object.assign({}, control.st, { perms: p });
+        control.run(["set", key + "=" + value]);
+    }
+    // a pet saved by an older version has no value for the newer keys yet: show the pet's default
+    readonly property var defaults: ({ notebook: true, sons: true, digitacao: true, estilo: "original", volume: "medio" })
     function perm(key) {
-        return control.perms[key] === true;
+        return (key in control.perms ? control.perms[key] : control.defaults[key]) === true;
+    }
+    function choice(key) {
+        return String(control.perms[key] || control.defaults[key] || "");
     }
 
     Process {
@@ -194,6 +208,22 @@ Item {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Tokens.s1
+                enabled: control.canTune
+                opacity: enabled ? 1 : 0.5
+                PLabel { text: I18n.tr("STYLE · APPLIES AT ONCE") }
+                Seg {
+                    Layout.fillWidth: true
+                    implicitHeight: Tokens.ctlH
+                    options: ["original", "rosa", "cyber", "matrix", "ambar"]
+                    labels: ({ original: I18n.tr("ORIGINAL"), rosa: I18n.tr("PINK"), cyber: I18n.tr("CYBER"),
+                               matrix: I18n.tr("MATRIX"), ambar: I18n.tr("AMBER") })
+                    current: control.choice("estilo")
+                    onChose: (k) => control.setChoice("estilo", k)
+                }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Tokens.s1
                 PLabel { text: I18n.tr("RIGHT NOW") }
                 RowLayout {
                     Layout.fillWidth: true
@@ -219,6 +249,21 @@ Item {
                     Item { Layout.fillWidth: true }
                 }
             }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Tokens.s1
+                enabled: control.canTune && control.perm("sons")
+                opacity: enabled ? 1 : 0.5
+                PLabel { text: I18n.tr("SOUND VOLUME") }
+                Seg {
+                    Layout.fillWidth: true
+                    implicitHeight: Tokens.ctlH
+                    options: ["baixo", "medio", "alto"]
+                    labels: ({ baixo: I18n.tr("LOW"), medio: I18n.tr("MEDIUM"), alto: I18n.tr("HIGH") })
+                    current: control.choice("volume")
+                    onChose: (k) => control.setChoice("volume", k)
+                }
+            }
 
             PLabel {
                 Layout.columnSpan: parent.columns
@@ -229,6 +274,8 @@ Item {
             PermSwitch { label: I18n.tr("LAND ON WINDOWS"); key: "pousar_janelas" }
             PermSwitch { label: I18n.tr("BALL"); key: "bolinha" }
             PermSwitch { label: I18n.tr("NOTEBOOK · WORKS WHILE YOU CODE"); key: "notebook" }
+            PermSwitch { label: I18n.tr("SOUNDS · BEEPS & REACTIONS"); key: "sons" }
+            PermSwitch { label: I18n.tr("TYPING SOUND AT THE NOTEBOOK"); key: "digitacao"; dim: !control.perm("sons") }
             PermSwitch { label: I18n.tr("FIREWORKS WHEN HAPPY"); key: "fogos" }
             PermSwitch { label: I18n.tr("PETTING & LEARNING"); key: "carinho" }
             PermSwitch { label: I18n.tr("POKE"); key: "cutucar" }
