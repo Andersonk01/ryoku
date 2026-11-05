@@ -22,11 +22,11 @@ Item {
     readonly property bool installed: st.installed === true
     readonly property bool running: st.running === true
     readonly property bool starting: st.starting === true && !running
-    readonly property bool ligado: st.enabled === true
+    readonly property bool isOn: st.enabled === true
     readonly property bool panico: running && st.ativo === false
     readonly property var perms: st.perms || ({})
     readonly property var pets: Array.isArray(st.pets) && st.pets.length ? st.pets : ["bryan"]
-    // {id: {nome, descricao}}, read from each pets/<id>.json; the description is the pet's own text
+    // {id: {nome, descricao: {language: text}}}, read from each pets/<id>.json
     readonly property var petInfo: st.pet_info || ({})
     readonly property string currentPet: String(st.pet || "bryan")
     readonly property bool canTune: installed && (running || st.configured === true) && pending === ""
@@ -34,6 +34,19 @@ Item {
     function petName(id) {
         var info = control.petInfo[id] || {};
         return String(info.nome || id);
+    }
+    // the description in the desktop's language: exact (pt_BR), its base (pt), English, then any
+    function describe(id) {
+        var d = (control.petInfo[id] || {}).descricao || {};
+        var lang = String(I18n.lang || "en");
+        var order = [lang, lang.split("_")[0], "en"];
+        for (var i = 0; i < order.length; i++)
+            if (d[order[i]])
+                return String(d[order[i]]);
+        for (var k in d)
+            if (d[k])
+                return String(d[k]);
+        return "";
     }
     // a new character restarts a running pet, or is saved for its next start
     function choosePet(k) {
@@ -166,7 +179,7 @@ Item {
                 onAct: control.run(["settings"])
             }
             Sw {
-                on: control.ligado
+                on: control.isOn
                 enabled: control.installed && control.pending === ""
                 Accessible.name: I18n.tr("Pestinha on")
                 onToggled: (v) => {
@@ -287,7 +300,7 @@ Item {
                     id: card
                     required property string modelData
                     readonly property bool current: modelData === control.currentPet
-                    readonly property string about: String((control.petInfo[modelData] || {}).descricao || "")
+                    readonly property string about: control.describe(modelData)
                     Layout.columnSpan: grid.columns
                     Layout.fillWidth: true
                     implicitHeight: cardCol.implicitHeight + 2 * Tokens.s3

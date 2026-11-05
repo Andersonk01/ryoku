@@ -38,10 +38,14 @@ and each keeps its own memory, so what one learns never reaches another.
 | **Jorge** | A satirical finance and AI "coach", smooth and overconfident, with a gold frame and a red tie. Ignored, he insists: boredom turns into curiosity and play. Attention thrills him, since pokes and petting turn into joy. He is almost never sad, but despairs when you refuse or dismiss his things, sticks notes and throws mentoring flyers. Jorge is not a reference to any real coach, company or person, and he sells, charges or asks for nothing. |
 
 The Hub lists every character under THE CHARACTERS with the description from
-its `pets/<id>.json` (the `descricao` field, in Portuguese like the rest of
-the pet), and the pet's own Settings window shows it under the character
-picker. A new character is a new `pets/<id>.json` plus a `pets/<id>/` folder
-(see the pet's `pets/README.md`); it shows up in both places on its own.
+its `pets/<id>.json`. The `descricao` field holds one text per language, keyed
+by the same codes as the desktop (`{"en": "...", "pt": "..."}`), and the Hub
+shows the one for the desktop's language: the exact code (`pt_BR`), then its
+base (`pt`), then English. A plain string counts as Portuguese. The pet's own
+Settings window shows the Portuguese one under the character picker, because
+the pet's own windows, menus, notes and signs are in Portuguese for now. A new
+character is a new `pets/<id>.json` plus a `pets/<id>/` folder (see the pet's
+`pets/README.md`); it shows up in both places on its own.
 
 Changing the character restarts a running pet. With the pet closed, it is
 saved for its next start.
