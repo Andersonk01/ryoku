@@ -249,7 +249,7 @@ Item {
                     : I18n.tr("CTRL + ALT + SHIFT + B is the panic key: everything disappears at once; TURN BACK ON brings it back."),
                 control.st.login === true
                     ? I18n.tr("When on, it opens at every login.")
-                    : I18n.tr("It does not open by itself at login yet (the login hook is not in hypr/user.lua)."),
+                    : I18n.tr("It does not open by itself at login (no `ryoku-pestinha autostart` hook in the Hyprland config)."),
                 (!control.running && control.st.configured !== true)
                     ? I18n.tr("The first time it opens, it asks for its permissions in its own window.")
                     : I18n.tr("A new character restarts the pet; each one keeps its own memory.")

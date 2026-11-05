@@ -24,3 +24,7 @@ hl.window_rule({
 -- panic key: the pet and everything it put on screen vanish at once
 -- (Hub > Pestinha > TURN BACK ON, or `ryoku-pestinha religar`, brings it back)
 hl.bind(K("CTRL + ALT + SHIFT + B"), hl.dsp.exec_cmd("ryoku-pestinha panic"))
+
+-- login: opens the pet when it is on in the Hub (`autostart` does nothing while
+-- it is off). Starts are serialised, so the same hook in user.lua is harmless.
+hl.on("hyprland.start", function() hl.exec_cmd("ryoku-pestinha autostart") end)

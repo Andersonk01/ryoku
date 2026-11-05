@@ -59,6 +59,9 @@ set_conf() {  # set_conf <chave> <valor JSON>
 
 start() {
     installed || { echo "ryoku-pestinha: Pestinha não encontrado em $dir" >&2; return 1; }
+    # um start por vez: dois ganchos de login (o do módulo e um no user.lua) ou um
+    # clique duplo no Hub não abrem dois pets; o segundo espera e vê o primeiro
+    exec 9>"${XDG_RUNTIME_DIR:-/tmp}/ryoku-pestinha.lock" && flock -w 15 9 || return 1
     if [[ -n $(pet_pids) ]]; then return 0; fi
     mkdir -p "$log_dir"
     local out="$log_dir/pestinha.log"
@@ -67,9 +70,12 @@ start() {
         tail -c 262144 "$out" >"$out.tmp" && mv -f "$out.tmp" "$out"
     fi
     # --direto: as permissões já foram escolhidas uma vez (na primeira vez a tela aparece mesmo assim)
-    (cd "$dir" && setsid "$py" "$dir/main.py" --direto "$@" >>"$out" 2>&1 </dev/null &)
-    local i
-    for ((i = 0; i < 50; i++)); do
+    # exec: o pet toma o lugar do subshell (nenhum bash fica pendurado nele); 9>&-: o pet
+    # não herda a trava, senão o próximo start esperaria o pet fechar
+    (cd "$dir" && exec setsid "$py" "$dir/main.py" --direto "$@" >>"$out" 2>&1 </dev/null 9>&-) &
+    # até uns 5 s pelo relógio (cada volta também roda o controle), bem dentro da espera da trava
+    local fim=$((SECONDS + 5))
+    while ((SECONDS < fim)); do
         sleep 0.1
         running && return 0
     done
