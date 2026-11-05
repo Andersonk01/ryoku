@@ -34,7 +34,7 @@ and each keeps its own memory, so what one learns never reaches another.
 | Character | Who it is |
 |---|---|
 | **Bryan** | The original: a small green-framed screen with two eyes. Curious and playful, the one who likes the ball most and gets truly sad when it is taken away. Being dragged barely bothers him; a hard hit or his things being dismissed makes him angry, and then he protests against the cursor, Alt+F4 and the Task Manager, goes on strike and ends up in a revolution, throwing paper balls. |
-| **Cypher** | A cybersecurity hacker in a hood and headset, with a cyan screen, code rain and glitch (the look of the login intro). The most focused one: when you type or code he sits at his own notebook and works along. New things and the web make him curious, so does a poke, and loneliness weighs less on him. Dragging him or dismissing his things annoys him; petting calms him down. When bored he would rather stick security notes ("2FA. ATIVE. AGORA.") than play ball. It is a joke: he never probes or breaks into anything. |
+| **Cypher** | A cybersecurity hacker in a hood and headset, with a cyan screen, code rain and glitch (the look of the login intro). The most focused one: when you type or code he sits at his own notebook and works along. New things and the web make him curious, so does a poke, and loneliness weighs less on him. Dragging him or dismissing his things annoys him; petting calms him down. When bored he would rather stick security notes ("2FA. ENABLE IT. NOW.") than play ball. It is a joke: he never probes or breaks into anything. |
 | **Jorge** | A satirical finance and AI "coach", smooth and overconfident, with a gold frame and a red tie. Ignored, he insists: boredom turns into curiosity and play. Attention thrills him, since pokes and petting turn into joy. He is almost never sad, but despairs when you refuse or dismiss his things, sticks notes and throws mentoring flyers. Jorge is not a reference to any real coach, company or person, and he sells, charges or asks for nothing. |
 
 The Hub lists every character under THE CHARACTERS with the description from
@@ -42,13 +42,25 @@ its `pets/<id>.json`. The `descricao` field holds one text per language, keyed
 by the same codes as the desktop (`{"en": "...", "pt": "..."}`), and the Hub
 shows the one for the desktop's language: the exact code (`pt_BR`), then its
 base (`pt`), then English. A plain string counts as Portuguese. The pet's own
-Settings window shows the Portuguese one under the character picker, because
-the pet's own windows, menus, notes and signs are in Portuguese for now. A new
-character is a new `pets/<id>.json` plus a `pets/<id>/` folder (see the pet's
+Settings window shows the one for its language under the character picker. A
+new character is a new `pets/<id>.json` plus a `pets/<id>/` folder (see the pet's
 `pets/README.md`); it shows up in both places on its own.
 
 Changing the character restarts a running pet. With the pet closed, it is
 saved for its next start.
+
+## Language
+
+The pet speaks Portuguese or English: its Settings and welcome windows, tray,
+menu, warnings, sticky notes and protest signs all follow the desktop's
+language, Portuguese on a Portuguese desktop and English on any other. A
+language picked in the Hub wins (`ryoku-pestinha` passes it as
+`PESTINHA_IDIOMA`); with Auto the pet reads the system locale itself.
+
+Each character's notes and signs have an English copy next to the original
+(`pets/<id>/cartazes.en.txt`, `recadinhos.en.txt`). Memes carry their text in
+the image and stay in Portuguese, unless the character has a `memes.en/`
+folder; turn Memes off in the Hub to avoid them.
 
 ## Style and sound
 

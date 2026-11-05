@@ -36,6 +36,19 @@ perms_file="$dir/memory/permissions.json"
 
 installed() { [[ -x $py && -f $dir/main.py && -f $ctl ]]; }
 
+# the pet speaks Portuguese or English. A language picked in the Hub ("language"
+# in shell.json) wins, so the pet and the desktop always agree; with "auto" the
+# pet follows the system locale on its own
+pet_lang() {
+    local l
+    l=$(jq -r '.language // "auto"' "${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/shell.json" 2>/dev/null)
+    case $l in
+        "" | auto | null) ;;
+        pt*) printf pt ;;
+        *) printf en ;;
+    esac
+}
+
 # the pet is running when its local control socket answers
 ctl() { python3 -I "$ctl" "$@"; }
 running() { installed && ctl status >/dev/null 2>&1; }
@@ -73,7 +86,10 @@ start() {
     # --direto skips the permission screen once it was answered (the first run still shows it).
     # exec: the pet replaces the subshell, so no bash is left holding the lock; 9>&-: the pet
     # does not inherit the lock either, or the next start would wait for the pet to quit
-    (cd "$dir" && exec setsid "$py" "$dir/main.py" --direto "$@" >>"$out" 2>&1 </dev/null 9>&-) &
+    local lang
+    lang=$(pet_lang)
+    (cd "$dir" && { [[ -z $lang ]] || export PESTINHA_IDIOMA=$lang; } &&
+        exec setsid "$py" "$dir/main.py" --direto "$@" >>"$out" 2>&1 </dev/null 9>&-) &
     # about 5 s by the clock (each round also runs the control client), well inside the lock wait
     local until=$((SECONDS + 5))
     while ((SECONDS < until)); do
