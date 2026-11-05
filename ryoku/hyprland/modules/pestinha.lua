@@ -1,4 +1,4 @@
--- Pestinha, the desktop pet (github.com/Andersonk01/pestinha, branch hyprland),
+-- Pestinha, the desktop pet (github.com/Andersonk01/pestinha, branch anderson),
 -- run and configured through `ryoku-pestinha` and Hub > Desktop > Pestinha.
 -- It runs under XWayland: every one of its small windows has the class
 -- "pestinha" and a title starting with "pestinha:janela", so they float on

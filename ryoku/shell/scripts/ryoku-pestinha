@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ryoku-pestinha: turns Pestinha (the desktop pet) on and off and configures it.
 #
-# Pestinha (github.com/Andersonk01/pestinha, branch hyprland) lives in a
+# Pestinha (github.com/Andersonk01/pestinha, branch anderson) lives in a
 # checkout (default ~/Projects/pestinha, with its venv in .venv) and runs under
 # XWayland; its window rule, panic key and login hook are in
 # hypr/modules/pestinha.lua. The Hub (Desktop > Pestinha), the panic key and

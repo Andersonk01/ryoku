@@ -2,7 +2,7 @@
 
 Pestinha is a desktop pet with a spiking neural network of its own
 ([Andersonk01/pestinha](https://github.com/Andersonk01/pestinha), branch
-`hyprland`). It falls, walks on top of your windows, plays with a ball, works
+`anderson`). It falls, walks on top of your windows, plays with a ball, works
 at a notebook while you code, pulls pranks with memes and sticky notes and
 learns from your petting. This fork runs it from three places:
 
@@ -17,7 +17,7 @@ learns from your petting. This fork runs it from three places:
 The pet lives in a checkout with its own venv:
 
 ```bash
-git clone -b hyprland https://github.com/Andersonk01/pestinha.git ~/Projects/pestinha
+git clone -b anderson https://github.com/Andersonk01/pestinha.git ~/Projects/pestinha
 cd ~/Projects/pestinha && python -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
