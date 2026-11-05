@@ -105,6 +105,11 @@ never focused.
   brings it back.
 - The `hyprland.start` hook runs `ryoku-pestinha autostart`, which opens the
   pet only when it is on in the Hub.
+- With more than one monitor, the pet adds a `pestinha-monitor` rule at run
+  time (`hyprctl eval`) that opens all of its windows on the first monitor in
+  `hyprctl monitors`. Hyprland places an XWayland window through the monitor
+  it belongs to, so with every window on the same one the pet sees the
+  monitors where they really are and walks across the edge they share.
 
 ## Files
 
