@@ -11,7 +11,7 @@
 #   ryoku-pestinha on | off            on (now and at every login) | off
 #   ryoku-pestinha start | stop | restart
 #   ryoku-pestinha autostart           at login: opens it when it is on
-#   ryoku-pestinha pet <id>            picks the character (bryan, cypher, jorge...)
+#   ryoku-pestinha pet <id>            picks the character (bolota, bryan, cypher, jorge...)
 #   ryoku-pestinha set key=on|off...   permissions (bolinha, fogos, sons...),
 #                  estilo=<name> volume=baixo|medio|alto   and the choices
 #   ryoku-pestinha panic | religar | settings | pause | hide

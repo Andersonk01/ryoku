@@ -33,6 +33,7 @@ and each keeps its own memory, so what one learns never reaches another.
 
 | Character | Who it is |
 |---|---|
+| **Bolota** | A brown furball with huge eyes and short little paws. The most playful one: he rolls across the screen, runs on his tiny feet when he is happy and waves when he wakes up. He loves the ball (he is one too) and melts under petting. He almost never gets angry: what annoys the others makes him sad instead. A hard hit or being dragged scares him, and loneliness weighs on him. His round body is a fur image with eyes, paws and feet drawn on top, so he keeps every expression; a style tints his fur. |
 | **Bryan** | The original: a small green-framed screen with two eyes. Curious and playful, the one who likes the ball most and gets truly sad when it is taken away. Being dragged barely bothers him; a hard hit or his things being dismissed makes him angry, and then he protests against the cursor, Alt+F4 and the Task Manager, goes on strike and ends up in a revolution, throwing paper balls. |
 | **Cypher** | A cybersecurity hacker in a hood and headset, with a cyan screen, code rain and glitch (the look of the login intro). The most focused one: when you type or code he sits at his own notebook and works along. New things and the web make him curious, so does a poke, and loneliness weighs less on him. Dragging him or dismissing his things annoys him; petting calms him down. When bored he would rather stick security notes ("2FA. ENABLE IT. NOW.") than play ball. It is a joke: he never probes or breaks into anything. |
 | **Jorge** | A satirical finance and AI "coach", smooth and overconfident, with a gold frame and a red tie. Ignored, he insists: boredom turns into curiosity and play. Attention thrills him, since pokes and petting turn into joy. He is almost never sad, but despairs when you refuse or dismiss his things, sticks notes and throws mentoring flyers. Jorge is not a reference to any real coach, company or person, and he sells, charges or asks for nothing. |
@@ -66,7 +67,7 @@ folder; turn Memes off in the Hub to avoid them.
 
 - **Style** (Original, Pink, Cyber, Matrix, Amber) recolours any character at
   once, without a restart. Cyber is cyan with code rain, scanlines and
-  glitch. The character keeps its accessories.
+  glitch. The character keeps its accessories; on Bolota the style tints his fur.
 - **Sounds** are beeps and reactions to pokes, petting, impacts, fireworks,
   waking up and emotions, plus a typing sound while he works at the notebook.
   Each has its own switch, and the volume is Low, Medium or High. A hidden,
