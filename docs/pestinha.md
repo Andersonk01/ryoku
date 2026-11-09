@@ -83,7 +83,7 @@ folder; turn Memes off in the Hub to avoid them.
 | `ryoku-pestinha autostart` | At login: opens it only when it is on. |
 | `ryoku-pestinha pet <id>` | Picks the character. |
 | `ryoku-pestinha set key=on\|off ...` | Permissions (`bolinha`, `fogos`, `sons`, `digitacao`, ...). |
-| `ryoku-pestinha set estilo=<name> volume=<level>` | Style and volume. The pet rejects an unknown option. |
+| `ryoku-pestinha set estilo=<name> volume=<level> tamanho=<percent>` | Style, volume and size (70, 85, 100, 120 or 150). The pet rejects an unknown option. |
 | `ryoku-pestinha panic` / `religar` | Panic, and turning back on after it. |
 | `ryoku-pestinha settings` / `pause` / `hide` | Opens its Settings window, pauses, hides. |
 
@@ -110,6 +110,13 @@ never focused.
   `hyprctl monitors`. Hyprland places an XWayland window through the monitor
   it belongs to, so with every window on the same one the pet sees the
   monitors where they really are and walks across the edge they share.
+- `no_focus` also makes Hyprland skip a window for the mouse, so a click
+  would go through the pet. When the cursor comes near the pet, its notebook
+  or its ball, the pet turns the mouse on for that one window
+  (`hl.dsp.window.set_prop`, `no_focus` off) and back off when the cursor
+  leaves. The `pestinha-monitor` rule also sets `no_follow_mouse`, so hovering
+  never takes the keyboard focus. A click does give the window the focus;
+  when the button comes up, the pet hands it back to the window you were in.
 
 ## Files
 

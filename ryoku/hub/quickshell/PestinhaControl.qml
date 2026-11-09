@@ -73,7 +73,7 @@ Item {
         control.st = Object.assign({}, control.st, { perms: p });
         control.run(["set", key + "=" + (value ? "on" : "off")]);
     }
-    // a pick between options (style, volume): same path as a switch, with the option as the value
+    // a pick between options (style, size, volume): same path as a switch, with the option as the value
     function setChoice(key, value) {
         if (control.choice(key) === value)
             return;
@@ -83,7 +83,7 @@ Item {
         control.run(["set", key + "=" + value]);
     }
     // a pet saved by an older version has no value for the newer keys yet: show the pet's default
-    readonly property var defaults: ({ notebook: true, sons: true, digitacao: true, estilo: "original", volume: "medio" })
+    readonly property var defaults: ({ notebook: true, sons: true, digitacao: true, estilo: "original", tamanho: "100", volume: "medio" })
     function perm(key) {
         return (key in control.perms ? control.perms[key] : control.defaults[key]) === true;
     }
@@ -242,6 +242,21 @@ Item {
                                matrix: I18n.tr("MATRIX"), ambar: I18n.tr("AMBER") })
                     current: control.choice("estilo")
                     onChose: (k) => control.setChoice("estilo", k)
+                }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Tokens.s1
+                enabled: control.canTune
+                opacity: enabled ? 1 : 0.5
+                PLabel { text: I18n.tr("SIZE · PET AND NOTEBOOK") }
+                Seg {
+                    Layout.fillWidth: true
+                    implicitHeight: Tokens.ctlH
+                    options: ["70", "85", "100", "120", "150"]
+                    labels: ({ "70": "70%", "85": "85%", "100": "100%", "120": "120%", "150": "150%" })
+                    current: control.choice("tamanho")
+                    onChose: (k) => control.setChoice("tamanho", k)
                 }
             }
             ColumnLayout {

@@ -13,7 +13,7 @@
 #   ryoku-pestinha autostart           at login: opens it when it is on
 #   ryoku-pestinha pet <id>            picks the character (bolota, bryan, cypher, jorge...)
 #   ryoku-pestinha set key=on|off...   permissions (bolinha, fogos, sons...),
-#                  estilo=<name> volume=baixo|medio|alto   and the choices
+#                  estilo=<name> volume=baixo|medio|alto tamanho=70|85|100|120|150   and the choices
 #   ryoku-pestinha panic | religar | settings | pause | hide
 #
 # Config: ~/.config/ryoku/pestinha.json  {"enabled": bool, "dir": "<checkout>"}
@@ -219,7 +219,7 @@ case $cmd in
                 k="${kv%%=*}" v="${kv#*=}"
                 [[ $k == ativo || $k == configurado || $k == pet ]] && continue
                 case $k in
-                    estilo|volume)  # choices (estilo=cyber, volume=baixo): the pet checks the option exists
+                    estilo|volume|tamanho)  # choices (estilo=cyber, volume=baixo, tamanho=120): the pet checks the option exists
                         [[ ${v,,} =~ ^[a-z0-9_-]{1,24}$ ]] || { echo "ryoku-pestinha: invalid option: $kv" >&2; exit 2; }
                         args+=(--arg "v$i" "${v,,}")
                         filter+=" | .[\"$k\"] = \$v$i" ;;
